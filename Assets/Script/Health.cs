@@ -12,6 +12,7 @@ public class Health : MonoBehaviour
     void Awake()
     {
         currentHealth = maxHealth;
+        isInvincible = false;
     }
 
     public void TakeDamage(int damage)

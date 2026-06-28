@@ -35,14 +35,14 @@ public class PlayerControls : MonoBehaviour
     private InputAction moveAction;
     private InputAction slideAction;
  // Haha player states go brr
-    private enum MoveState
+    public enum MoveState
     {
         Normal,
         Slide,
         SlideRecovery
     }
 // default settings
-    private MoveState state = MoveState.Normal;
+    public MoveState state = MoveState.Normal;
     private bool canSlide = true;
     private bool isKnockedBack;
     private bool isRecovering = false; //added so SlideRecovery doesn't run twice at the same time also because I am smart
@@ -220,20 +220,23 @@ public class PlayerControls : MonoBehaviour
     void OnCollisionEnter2D(Collision2D collision)
     {
         if (state != MoveState.Slide)
-            return;
-
+    return;
+       
         // check if this is a charging enemy if so then the slide can't deflect a charge
-        EnemyAI enemyAI = collision.gameObject.GetComponent<EnemyAI>();
-        if (enemyAI != null && enemyAI.IsCharging)
-        {
-            // the charge hits the player no matter what(even mid-slide)
-            Vector2 bounceDir = (transform.position - collision.transform.position).normalized;
-            StartCoroutine(Knockback(bounceDir * knockbackForce * 1.5f));
-            StartCoroutine(SlideRecovery());
-            CameraShake.Instance?.ShakeCamera(2.5f);
-            return;
-        }
+       EnemyAI enemyAI = collision.gameObject.GetComponent<EnemyAI>();
+if (enemyAI != null && enemyAI.IsCharging)
+{
+    Health playerHealth = GetComponent<Health>();
 
+    if (playerHealth != null)
+        playerHealth.TakeDamage(enemyAI.contactDamage);
+
+    Vector2 bounceDir = (transform.position - collision.transform.position).normalized;
+    StartCoroutine(Knockback(bounceDir * knockbackForce * 1.5f));
+    StartCoroutine(SlideRecovery());
+    CameraShake.Instance?.ShakeCamera(2.5f);
+    return;
+}
         Health enemy = collision.gameObject.GetComponent<Health>();
 
         Vector2 hitDir = (collision.transform.position - transform.position).normalized;

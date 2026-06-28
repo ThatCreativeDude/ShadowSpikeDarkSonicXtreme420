@@ -19,8 +19,8 @@ public class EnemyAI : MonoBehaviour
     // combat settings
     public float attackCooldown = 1.5f;
     public int contactDamage = 1;
-
-    public bool IsCharging => state == State.Charge;
+public bool canCharge = true;
+    public bool IsCharging => canCharge && state == State.Charge;
 
  //references 
     private Animator anim;
@@ -36,6 +36,7 @@ public class EnemyAI : MonoBehaviour
     {
         Idle,
         Chase,
+        Attack,
         Windup,
         Charge,
         Recovery
@@ -58,7 +59,7 @@ public class EnemyAI : MonoBehaviour
     {
         if (!player) return;
 
-        if (state == State.Windup || state == State.Charge || state == State.Recovery)
+        if (state == State.Windup || state == State.Charge || state == State.Recovery || state == State.Attack)
         {
             HandleAnimation();
             return;
@@ -81,9 +82,9 @@ public class EnemyAI : MonoBehaviour
             playerEnteredChaseRange = true;
             state = State.Chase;
         }
-        else if (distToPlayer <= chargeRange)
-        {
-            if (playerEnteredChaseRange && chargeReady)
+ else if (distToPlayer <= chargeRange)
+{
+    if (canCharge && playerEnteredChaseRange && chargeReady)
             {
                 playerEnteredChaseRange = false;
                 StartCoroutine(ChargeRoutine());
@@ -114,7 +115,10 @@ public class EnemyAI : MonoBehaviour
                 rb.linearVelocity = toPlayer * moveSpeed;
                 Rotate(toPlayer);
                 break;
-
+            case State.Attack:
+                rb.linearVelocity = Vector2.zero;
+                Rotate(toPlayer);
+                break;
             case State.Windup:
                 rb.linearVelocity = Vector2.zero;
                 Rotate(chargeDir);
@@ -132,31 +136,54 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    void OnCollisionEnter2D(Collision2D collision)
-    {
-        if (state != State.Charge) return;
+void OnCollisionStay2D(Collision2D collision)
+{
+    if (!collision.gameObject.CompareTag("Player"))
+        return;
 
-        if (collision.gameObject.CompareTag("Player"))
+    Health playerHealth = collision.gameObject.GetComponent<Health>();
+
+    if (playerHealth == null)
+        return;
+
+        if (state == State.Charge)
         {
-            Health playerHealth = collision.gameObject.GetComponent<Health>();
-
-            if (playerHealth != null)
-                playerHealth.TakeDamage(contactDamage);
-
+            playerHealth.TakeDamage(contactDamage);
+            chargeInterrupted = true;
+            rb.linearVelocity = Vector2.zero;
             CameraShake.Instance?.ShakeCamera(2f);
+
+            return;
         }
 
-        chargeInterrupted = true;
-        rb.linearVelocity = Vector2.zero;
-    }
+    state = State.Attack;
 
+    if (Time.time < lastAttackTime + attackCooldown)
+        return;
+
+    PlayerControls playerControls = collision.gameObject.GetComponent<PlayerControls>();
+
+    if (playerControls != null && playerControls.state == PlayerControls.MoveState.Normal)
+    {
+        playerHealth.TakeDamage(contactDamage);
+        lastAttackTime = Time.time;
+        CameraShake.Instance?.ShakeCamera(2f);
+    }
+}void OnCollisionExit2D(Collision2D collision)
+{
+    if (collision.gameObject.CompareTag("Player") && state == State.Attack)
+    {
+        state = State.Chase;
+    }
+}
     void HandleAnimation()
     {
         if (!anim) return;
 
         anim.SetBool("IsIdle", state == State.Idle);
         anim.SetBool("IsRunning", state == State.Chase);
-        anim.SetBool("IsAttacking", state == State.Charge || state == State.Windup);
+        anim.SetBool("IsAttacking", state == State.Windup);
+        anim.SetBool("IsDashing", state == State.Charge);
     }
 
     System.Collections.IEnumerator ChargeRoutine()
@@ -171,9 +198,8 @@ public class EnemyAI : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
 
         yield return new WaitForSeconds(windupTime);
-
-        state = State.Charge;
-        lastAttackTime = Time.time;
+            
+            state = State.Charge;       
 
         float t = 0f;
         while (t < chargeTime && !chargeInterrupted)
