@@ -14,6 +14,7 @@ public class WaveManager : MonoBehaviour
         public float spawnInterval = 0.4f;
     }
 
+
     public Wave[] waves;
     public GameObject weakEnemyPrefab;
     public GameObject chargerEnemyPrefab;
@@ -32,6 +33,7 @@ public class WaveManager : MonoBehaviour
     private List<GameObject> aliveEnemies = new List<GameObject>();
     private List<Transform> spawnPointBag = new List<Transform>();
     private int spawnPointIndex;
+
 
     void Start()
     {            
@@ -54,7 +56,7 @@ public class WaveManager : MonoBehaviour
         {
             if(Input.GetKeyDown(KeyCode.R))
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene(0);
+                SceneManager.LoadScene(0);
             }
         }
     }
